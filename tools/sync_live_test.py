@@ -29,7 +29,12 @@ with sync_playwright() as p:
       s.profile.name = 'Device A'; window.__fit.store.save(); }""")
     A.evaluate("window.__fit.go('me')")
     A.click('label.toggle:has-text("Sync my data") input')
-    A.wait_for_function("document.getElementById('sync-status') && /Synced|Loaded|newer/.test(document.getElementById('sync-status').textContent)")
+    # The account may hold data from an earlier run: A has its own log, so it must ASK.
+    A.wait_for_function("document.querySelector('.sheet') || /Synced/.test((document.getElementById('sync-status') || {}).textContent || '')")
+    if A.query_selector('.sheet'):
+        check('A is asked before replacing account data', 'already has SlipFit data' in A.inner_text('.sheet'))
+        A.click(".sheet-actions >> text=Keep this browser's")
+    A.wait_for_function("/Synced/.test((document.getElementById('sync-status') || {}).textContent || '')")
     check('A reports synced', True)
     B = device()
     B.goto(URL)
@@ -39,6 +44,7 @@ with sync_playwright() as p:
     B.evaluate("window.__fit.go('me')")
     B.click('label.toggle:has-text("Sync my data") input')
     B.wait_for_function("window.__fit.state.workouts.some(w => w.id === 'synctest1')")
+    check('B (no data of its own) was not asked', B.query_selector('.sheet') is None)
     st = B.evaluate('window.__fit.state')
     check('B received the workout', any(w['id'] == 'synctest1' and w['ex'][0]['s'][0]['w'] == 61.235 for w in st['workouts']))
     check('B received the profile', st['profile']['name'] == 'Device A', st['profile']['name'])

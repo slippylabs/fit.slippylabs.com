@@ -2,7 +2,7 @@
  * CACHE carries the app version; a new release installs a new cache and the
  * old one is deleted on activate. Bump it with changelog.js and the ?v= strings. */
 const CACHE = 'slipfit-1.0.1';
-const V = '?v=1.0.1';
+const V = '?v=1.0.1-r3';
 const SHELL = [
   './', 'index.html', 'app.css' + V, 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/changelog.js' + V, 'js/exercises.js' + V, 'js/calc.js' + V, 'js/programs.js' + V, 'js/gamify.js' + V,
