@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>SlipFit // fit.slippylabs.com</title>
+<meta name="description" content="SlipFit: a free workout tracker and fitness planner. Personal plans, a workout logger with progression and rest timer, goals with deadlines, 12 fitness calculators, progress charts, streaks, XP and achievements. Works offline, no ads.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://fit.slippylabs.com/">
+<meta property="og:title" content="SlipFit // fit.slippylabs.com">
+<meta property="og:description" content="A free workout tracker and fitness planner: personal plans, a smart workout logger, goals, calculators, progress charts, streaks and achievements.">
+<meta property="og:image" content="https://fit.slippylabs.com/og-image.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SlipFit // fit.slippylabs.com">
+<meta name="twitter:description" content="A free workout tracker and fitness planner: personal plans, a smart workout logger, goals, calculators, progress charts, streaks and achievements.">
+<meta name="twitter:image" content="https://fit.slippylabs.com/og-image.png?v=1">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SlipFit">
+<link rel="stylesheet" href="app.css?v=1.0.0">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="#/today" aria-label="SlipFit home"><span class="brand-mark" aria-hidden="true">⚡</span><span>SlipFit</span></a>
+  <button type="button" class="level-chip" id="level-chip" onclick="location.hash='#/progress'" aria-label="Level and streak"></button>
+  <div class="top-actions">
+    <button type="button" class="icon-btn" id="feedback-btn" aria-label="Send feedback" title="Send feedback">💬</button>
+    <a class="icon-btn" href="#/me" aria-label="Me: profile and settings" title="Profile & settings">👤</a>
+  </div>
+</header>
+<nav class="tabbar" id="nav" aria-label="Main"></nav>
+<button type="button" class="active-pill" id="active-pill" hidden>● Workout in progress, tap to resume</button>
+<main id="main" tabindex="-1"></main>
+<div class="rest-bar" id="rest-bar" hidden></div>
+<noscript><p class="noscript">SlipFit needs JavaScript to run.</p></noscript>
+
+<script src="https://lab.slippylabs.com/lab-account.js"></script>
+<script src="js/changelog.js?v=1.0.0"></script>
+<script src="js/exercises.js?v=1.0.0"></script>
+<script src="js/calc.js?v=1.0.0"></script>
+<script src="js/programs.js?v=1.0.0"></script>
+<script src="js/gamify.js?v=1.0.0"></script>
+<script src="js/store.js?v=1.0.0"></script>
+<script src="js/ui.js?v=1.0.0"></script>
+<script src="js/charts.js?v=1.0.0"></script>
+<script src="js/app.js?v=1.0.0"></script>
+<!-- Slippy Deck: floating Slippy TV + jukebox player. Renders nothing unless admin.slippylabs.com/whoami confirms a signed-in account. -->
+<script defer src="https://slippylabs.com/deck/deck.js"></script>
+<!-- Slippy Labs sitewide privacy link. Self-contained on purpose: these sites
+     share no CSS, so it carries its own styles and inherits the page's text
+     colour instead of assuming a palette. -->
+<div class="sl-legal"><a href="https://slippylabs.com/privacy.html">Privacy</a></div>
+<style>
+.sl-legal{box-sizing:border-box;position:relative;z-index:3;height:64px;display:flex;align-items:center;justify-content:center;margin:0;padding:0 12px;font-family:"Consolas","SFMono-Regular",Menlo,Monaco,"Courier New",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.5}
+.sl-legal a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px}
+.sl-legal a:hover,.sl-legal a:focus-visible{text-decoration:underline;opacity:1}
+</style>
+</body>
+</html>
