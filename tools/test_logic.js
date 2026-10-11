@@ -265,6 +265,47 @@ async function syncTests() {
   eq('off empties the log', JSON.parse(server['fit-log']).w, []);
   eq('off empties the data', JSON.parse(server.fit).data, null);
   eq('A keeps its data locally', A.state.workouts.length, 2);
+  // The bug the live test caught: a device that only finished onboarding (so its
+  // stamp is NEWER than the account's) must adopt the account, not overwrite it.
+  for (const k of Object.keys(server)) delete server[k];
+  const D1 = S.createStore(mem(), account); D1.load(); await D1.initSync(); await D1.setSync(true);
+  D1.state.workouts.push(W('2026-10-01', [lift('bench', [[70, 5]])])); D1.save(); await D1.push(true);
+  await new Promise((r) => setTimeout(r, 5));
+  const asked = [];
+  const D2 = S.createStore(mem(), account, { resolve: async (c) => { asked.push(c); return 'local'; } }); D2.load();
+  D2.state.profile.onboarded = true; D2.save();          // newer stamp, no data of its own
+  await D2.initSync();
+  eq('fresh onboarded device adopts the account', await D2.setSync(true), 'pulled');
+  eq('...without asking', asked.length, 0);
+  eq('...and gets the workout', D2.state.workouts.length, 1);
+  // A device with its own log linking for the first time is asked.
+  const D3 = S.createStore(mem(), account, { resolve: async (c) => { asked.push(c); return 'remote'; } }); D3.load();
+  D3.state.workouts.push(W('2026-09-01', [])); D3.save();
+  await D3.initSync(); await D3.setSync(true);
+  eq('first link with own data asks', asked.length === 1 && asked[0].firstLink && asked[0].local.workouts === 1 && asked[0].remote.workouts === 1, true);
+  eq('chose remote', D3.state.workouts[0].d, '2026-10-01');
+  // Both sides edited since they last agreed: asked again, not silently resolved.
+  await new Promise((r) => setTimeout(r, 5));
+  D1.state.workouts.push(W('2026-10-02', [])); D1.save(); await D1.push(true);
+  await new Promise((r) => setTimeout(r, 5));
+  D3.state.workouts.push(W('2026-10-03', [])); D3.save({ local: false });
+  await new Promise((r) => setTimeout(r, 5));
+  asked.length = 0;
+  await D3.pull();
+  eq('both changed -> asked', asked.length === 1 && !asked[0].firstLink, true);
+  // Only this device changed -> plain upload, no question.
+  asked.length = 0;
+  D3.state.workouts.push(W('2026-10-04', [])); D3.save(); 
+  eq('only local changed -> pushed', await D3.pull(), 'pushed');
+  eq('no question', asked.length, 0);
+
+  // An automatic upload from a device that missed another device's write asks
+  // instead of overwriting it.
+  asked.length = 0;
+  D2.state.workouts.push(W('2026-10-05', [])); D2.save();
+  await D2.push(true);
+  eq('stale auto-push becomes a merge question', asked.length, 1);
+
   // Signed out: nothing is ever posted.
   posts.length = 0;
   const anon = { getUser: async () => ({ authenticated: false }), loadGameSave: account.loadGameSave, saveGameData: account.saveGameData };

@@ -21,6 +21,10 @@
   const SCHEMA = 1;
   const SLUG = 'fit', LOG_SLUG = 'fit-log';
   const SYNC_PREF = 'slipfit-sync';
+  // The `updated` stamp both sides last agreed on, per account. Comparing each
+  // side with this BASE (not with each other) is what tells "only the account
+  // changed" from "only this device changed" from "both changed".
+  const SYNC_BASE = 'slipfit-sync-base:';
   const MAX_BYTES = 256 * 1024;
   const DEBOUNCE_MS = 2500;
 
@@ -121,9 +125,16 @@
 
   /* ---------- the store ---------- */
 
-  function nowStamp() { return new Date().toISOString(); }
+  // ISO time plus a random tag: two devices saving in the same millisecond must
+  // still get different stamps, or each would look like the other's copy.
+  // Still sorts by time, which is all the default resolver compares.
+  function nowStamp() { return new Date().toISOString() + '~' + Math.random().toString(36).slice(2, 8); }
 
-  function createStore(storage, account) {
+  /* resolve(conflict) is asked when both sides changed since they last agreed
+   * (or this device has never synced and holds data of its own). It answers
+   * 'remote' or 'local'. The default keeps whichever was edited last. */
+  function createStore(storage, account, opts) {
+    const resolve = (opts && opts.resolve) || (async (c) => (c.local.updated > c.remote.updated ? 'local' : 'remote'));
     let state = null;
     let syncOn = false, syncUser = null, timer = null, busy = false;
     const listeners = [];
@@ -162,8 +173,16 @@
       return { main: JSON.stringify(parts.main).length, log: JSON.stringify(parts.log).length, max: MAX_BYTES };
     }
 
-    async function push(quiet) {
+    async function push(quiet, force) {
       if (!syncOn || !syncUser || !account || busy) return;
+      if (!force) {
+        // Another device may have written since we last agreed. Then this is a
+        // merge question for pull(), not a blind overwrite.
+        let cur = null;
+        try { cur = await account.loadGameSave(SLUG); } catch (e) { cur = null; }
+        const base = getBase();
+        if (cur && cur.data && cur.updated !== base && cur.updated !== state.updated) return pull();
+      }
       const parts = splitForSync(state);
       const big = [JSON.stringify(parts.main).length, JSON.stringify(parts.log).length];
       if (big[0] > MAX_BYTES || big[1] > MAX_BYTES) {
@@ -175,7 +194,7 @@
       try {
         const a = await account.saveGameData(LOG_SLUG, parts.log);
         const b = a && a.ok ? await account.saveGameData(SLUG, parts.main) : a;
-        if (b && b.ok) { if (!quiet) onStatus('Synced to ' + syncUser + '.'); }
+        if (b && b.ok) { setBase(parts.main.updated); if (!quiet) onStatus('Synced to ' + syncUser + '.'); }
         else onStatus('Could not sync: ' + ((b && b.error) || 'the account service did not answer') + '. Your data is safe in this browser.', true);
       } catch (e) {
         onStatus('Could not reach the account service. Your data is safe in this browser.', true);
@@ -188,6 +207,21 @@
       timer = setTimeout(() => push(true), DEBOUNCE_MS);
     }
 
+    function getBase() { try { return storage.getItem(SYNC_BASE + syncUser) || ''; } catch (e) { return ''; } }
+    function setBase(v) { try { storage.setItem(SYNC_BASE + syncUser, v || ''); } catch (e) { /* private window */ } }
+
+    function hasOwnData(st) { return st.workouts.length > 0 || st.goals.length > 0 || st.body.length > 1 || Object.keys(st.daily).length > 0; }
+
+    function takeRemote(main, log) {
+      state = joinFromSync(main, log, state);
+      Ex.addCustom(state.custom);
+      write();
+      setBase(main.updated);
+      listeners.forEach((fn) => fn(state));
+      onStatus('Loaded your data from ' + syncUser + '.');
+      return 'pulled';
+    }
+
     async function pull() {
       if (!syncOn || !syncUser || !account) return 'off';
       let main = null, log = null;
@@ -195,23 +229,28 @@
         main = await account.loadGameSave(SLUG);
         log = await account.loadGameSave(LOG_SLUG);
       } catch (e) { onStatus('Could not reach the account service; using this browser\'s copy.', true); return 'error'; }
+      const base = getBase();
       if (!main || !main.data) {
-        if (state.workouts.length || state.profile.onboarded) await push(false);
-        else onStatus('Sync is on. Nothing stored for ' + syncUser + ' yet.');
-        return 'pushed';
+        if (hasOwnData(state) || state.profile.onboarded) { await push(false, true); return 'pushed'; }
+        onStatus('Sync is on. Nothing stored for ' + syncUser + ' yet.');
+        return 'empty';
       }
-      if (state.updated && main.updated && state.updated > main.updated) {
-        onStatus('This browser had newer changes, so they were kept and uploaded.');
-        await push(true);
-        return 'pushed';
-      }
-      if (main.updated === state.updated) { onStatus('In sync with ' + syncUser + '.'); return 'same'; }
-      state = joinFromSync(main, log, state);
-      Ex.addCustom(state.custom);
-      write();
-      listeners.forEach((fn) => fn(state));
-      onStatus('Loaded your data from ' + syncUser + '.');
-      return 'pulled';
+      const remoteChanged = main.updated !== base;
+      const localChanged = !base || state.updated !== base;
+      if (!remoteChanged && !localChanged) { onStatus('In sync with ' + syncUser + '.'); return 'same'; }
+      if (!remoteChanged) { await push(true, true); onStatus('Uploaded this browser\'s changes.'); return 'pushed'; }
+      // A device that has never synced and holds nothing of its own simply adopts the account.
+      if (!localChanged || (!base && !hasOwnData(state))) return takeRemote(main, log);
+      const remoteLog = (log && log.w) || [];
+      const choice = await resolve({
+        local: { updated: state.updated, workouts: state.workouts.length },
+        remote: { updated: main.updated, workouts: remoteLog.length },
+        firstLink: !base,
+      });
+      if (choice === 'remote') return takeRemote(main, log);
+      if (choice !== 'local') { onStatus('Nothing synced yet: choose which copy to keep with "Sync now".', true); return 'cancelled'; }
+      await push(false, true);
+      return 'pushed';
     }
 
     async function setSync(on) {
@@ -225,6 +264,7 @@
           await account.saveGameData(SLUG, { v: 1, updated: nowStamp(), data: null });
         } catch (e) { /* nothing more to do from here */ }
       }
+      setBase('');
       onStatus('Sync is off. Your account copy was cleared; this browser keeps everything.');
       return 'off';
     }

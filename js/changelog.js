@@ -5,6 +5,13 @@
   'use strict';
   const CHANGELOG = [
     {
+      v: '1.0.1', d: '2026-10-11', title: 'Safer sync',
+      items: [
+        'Turning on sync on a second device no longer overwrites your account with that device\'s empty data.',
+        'When this browser and your account both changed, SlipFit now asks which to keep instead of guessing.',
+      ],
+    },
+    {
       v: '1.0.0', d: '2026-10-11', title: 'SlipFit is here',
       items: [
         'Today screen: your planned session, weekly goal ring, streak, XP and daily check-ins.',

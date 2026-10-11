@@ -7,7 +7,27 @@
   const Ex = window.FitEx, Calc = window.FitCalc, P = window.FitPrograms, G = window.FitGame, S = window.FitStore, Charts = window.FitCharts;
   const VERSION = window.FIT_VERSION;
 
-  const store = S.createStore(window.localStorage, window.LabAccount || null);
+  const store = S.createStore(window.localStorage, window.LabAccount || null, { resolve: syncConflict });
+
+  /* Both this browser and the account changed since they last matched. Never
+   * guess with someone's training log: show both and let them choose. */
+  function syncConflict(c) {
+    return new Promise((resolve) => {
+      let done = false;
+      const when = (iso) => (iso ? new Date(iso.split('~')[0]).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never');
+      const pick = (v) => { done = true; m.close(); resolve(v); };
+      const m = modal(c.firstLink ? 'Your account already has SlipFit data' : 'Changes on two devices', h('div',
+        h('p', c.firstLink ? 'This browser and your account both hold a training log. Which one should SlipFit keep? The other is replaced.'
+          : 'This browser and another device both changed your data since they last synced. Which one should SlipFit keep?'),
+        h('div.stat-row', stat(c.remote.workouts, 'workouts in your account (' + when(c.remote.updated) + ')'), stat(c.local.workouts, 'workouts in this browser (' + when(c.local.updated) + ')')),
+        h('p.muted.small', 'Not sure? Choose your account copy, then export a backup from this browser first if it matters.')),
+      { sticky: true, onClose: () => { if (!done) resolve('cancel'); }, actions: [
+        h('button.btn.ghost', { type: 'button', onclick: exportBackup }, '⬇ Back up this browser'),
+        h('button.btn.ghost', { type: 'button', onclick: () => pick('local') }, 'Keep this browser\'s'),
+        h('button.btn', { type: 'button', onclick: () => pick('remote') }, 'Use my account\'s'),
+      ] });
+    });
+  }
   let state = store.load();
   U.set(state.profile.units);
 
@@ -1528,7 +1548,7 @@
       if (!e.target.checked && !(await confirmBox('Turn off sync?', 'Your account copy will be cleared. This browser keeps everything.', 'Turn off'))) { e.target.checked = true; return; }
       await store.setSync(e.target.checked); state = store.state; render();
     } }), h('span', 'Sync my data to this account')));
-    if (store.syncOn) box.appendChild(h('button.btn.small.ghost', { type: 'button', onclick: async () => { await store.push(false); } }, 'Sync now'));
+    if (store.syncOn) box.appendChild(h('button.btn.small.ghost', { type: 'button', onclick: async () => { await store.pull(); state = store.state; } }, 'Sync now'));
     box.appendChild(h('div.muted.small', 'Storage used: ' + Math.round(pct * 100) + '% of the account limit' + (pct > 0.8 ? '. Getting full: export a backup.' : '.')));
     box.appendChild(status);
   }
