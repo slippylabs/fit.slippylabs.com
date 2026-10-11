@@ -5,7 +5,9 @@ sheet reads `js/changelog.js`; keep both in step.
 
 **Releasing:** bump the newest entry in `js/changelog.js`, every `?v=` in `index.html`,
 `CACHE`/`V` in `sw.js`, add an entry here, run the test suites, deploy from HEAD
-(`git archive`), re-run `gzip -9 -k -f` on the deployed `app.css`, then
+(`git archive`), run `~/tools/bin/check-stale-gz.sh --fix` (nginx serves the `.gz`), and only then
+fetch through the edge, because Cloudflare caches whatever it sees first under a `?v=`
+key. If it cached stale bytes, use a new key (`?v=X.Y.Z-r2`). Then
 `git tag -a vX.Y.Z` and push.
 
 ## v1.0.1 (2026-10-11)
@@ -18,6 +20,9 @@ sheet reads `js/changelog.js`; keep both in step.
   overwrite another device's newer work.
 - Save stamps carry a random tag, so two devices saving in the same millisecond
   can't be mistaken for each other.
+- Badges earned on load are awarded after the first sync pull, so a plain reload
+  is no longer mistaken for a two-device conflict.
+- The sync status message survives the Me screen redrawing.
 - Release checklist now includes re-gzipping `app.css` (nginx serves the `.gz`).
 
 ## v1.0.0 (2026-10-11)

@@ -1533,7 +1533,8 @@
 
   async function drawSync(box) {
     while (box.childNodes.length > 1) box.removeChild(box.lastChild);
-    const status = h('p.muted.small#sync-status');
+    // Survives the redraw that follows switching sync on or off.
+    const status = h('p.muted.small#sync-status' + (lastSync.err ? '.err' : ''), lastSync.msg);
     if (!window.LabAccount) { box.appendChild(h('p.muted', 'The account service could not be reached, so sync is unavailable right now. Everything still works in this browser.')); return; }
     const user = store.syncUser;
     if (!user) {
@@ -1553,7 +1554,9 @@
     box.appendChild(status);
   }
 
+  let lastSync = { msg: '', err: false };
   store.onStatus((msg, err) => {
+    lastSync = { msg: msg, err: !!err };
     const el = $('sync-status');
     if (el) { el.textContent = msg; el.classList.toggle('err', !!err); }
     else if (err) toast(msg, 'warn', 5000);
@@ -1671,9 +1674,14 @@
   store.onChange(() => { state = store.state; });
   $('active-pill').addEventListener('click', () => go('train'));
   render();
-  settleRewards(true);
   if (state.profile.onboarded) setTimeout(() => whatsNew(false), 600);
-  store.initSync().then((user) => { state = store.state; U.set(state.profile.units); if (user) render(); });
+  // Badges are awarded only AFTER the first sync pull: awarding them first is a
+  // local edit, which would make a plain reload look like a two-device conflict.
+  store.initSync().then((user) => {
+    state = store.state; U.set(state.profile.units);
+    settleRewards(true);
+    if (user) render();
+  });
   reminderCheck();
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
