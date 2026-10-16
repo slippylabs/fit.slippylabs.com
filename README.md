@@ -1,6 +1,12 @@
-# SlipFit
+# SlipFit (archived)
 
-A workout tracker and fitness planner that runs in the browser: **https://fit.slippylabs.com/**
+> **Archived 2026-10-16.** fit.slippylabs.com now runs our fork of openGym,
+> [slippylabs/opengym](https://github.com/slippylabs/opengym), which carries every SlipFit feature
+> (calculators, check-ins, goals, XP and achievements, programs and Couch to 5K). This repository
+> is kept read-only for reference; its calc, gamify and programs logic lives on in that fork as
+> the test oracle the ports are checked against. Data was not migrated.
+
+A workout tracker and fitness planner that ran in the browser at fit.slippylabs.com.
 
 Plans that tell you what to do today, a logger that remembers last time and tells you
 how to beat it, goals with deadlines, twelve fitness calculators, progress charts, and
